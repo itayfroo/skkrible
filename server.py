@@ -130,26 +130,27 @@ class GameServer:
                         name = client[0]  # Extract the name from the tuple
                         client_found = True
                         break
+
                 if self.players[name][0] == 10:
                     self.new_message = f"{name} has won the game!"
                     sys.exit(0)
+
                 if data.decode() == self.word and self.players[name][1] == False:
-                    print(f"Correct word guessed by {name}!")
                     self.new_message = f"Correct word guessed by {name}!"
+                    time.sleep(1)
                     self.players[name][0] += 1
                     self.players[name][1] = True
+
                 elif self.players[name][1] == True and data.decode() in self.word:
                     self.new_message = f"Oops... {name} tried to reveal the word!"
+
                 else:
-                    print(f"{name}: {data.decode()} + actual word: {self.word}")
                     self.new_message = f"{name}: {data.decode()}"
                 # Broadcast the received message to all other clients
-                print(self.players)
                 self.broadcast(data, client_socket, address)
             except Exception as e:
                 print(f"Error: {e}")
                 break
-        print(f"Connection closed: {address}")
         client_socket.close()
         self.clients.remove(
             (self.get_client_name_by_socket(client_socket), address[1]))  # Remove client by name and port
@@ -159,7 +160,6 @@ class GameServer:
         for client in self.clients:
             client_name, client_port = client
             try:
-                # Send message to all clients except the sender
                 if sender_socket:
                     if sender_socket.getpeername()[1] != client_port:
                         client_socket = self.get_client_socket_by_port(client_port)
@@ -221,7 +221,6 @@ def main_game_loop():
                 for i, word in enumerate(random_words):
                     if 50 < mouse_x < 50 + button_width and 50 + i * (button_height + 20) < mouse_y < 50 + i * (
                             button_height + 20) + button_height:
-                        print(f"Button clicked: {word}")
                         chat_server.word = word
                         drawing_app(chat_server)
                         chat_server.word = ""
@@ -302,10 +301,16 @@ def drawing_app(chat_server):
             pygame.draw.line(screen, (0, 0, 0), line[0], line[1], 5)
 
         pygame.display.flip()
-    chat_server.players[chat_server.clients[0][0]][1] = False
-    chat_server.players[chat_server.clients[1][0]][1] = False
+    for player in chat_server.players.keys():
+        chat_server.players[player][1] = False
 
-
+    chat_server.new_message =" \n"
+    chat_server.new_message = "Round over, results: "
+    time.sleep(1)
+    for player in chat_server.players.keys():
+        chat_server.new_message = f"{player}: {chat_server.players[player][0]} points."
+        time.sleep(1)
+    chat_server.new_message = " \n"
 # Run the main game loop
 if __name__ == '__main__':
     main_game_loop()
