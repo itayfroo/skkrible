@@ -119,9 +119,6 @@ class GameServer:
             thread.start()
 
     def handle_client(self, client_socket, address):
-        # Send a welcome message
-        client_socket.sendall(
-            "Welcome to the Drawing App! Please wait for the other players to state their names.".encode())
         name = ""
         while True:
             try:
@@ -133,11 +130,16 @@ class GameServer:
                         name = client[0]  # Extract the name from the tuple
                         client_found = True
                         break
-                if data.decode() == self.word:
+                if self.players[name][0] == 10:
+                    self.new_message = f"{name} has won the game!"
+                    sys.exit(0)
+                if data.decode() == self.word and self.players[name][1] == False:
                     print(f"Correct word guessed by {name}!")
                     self.new_message = f"Correct word guessed by {name}!"
                     self.players[name][0] += 1
                     self.players[name][1] = True
+                elif self.players[name][1] == True and data.decode() in self.word:
+                    self.new_message = f"Oops... {name} tried to reveal the word!"
                 else:
                     print(f"{name}: {data.decode()} + actual word: {self.word}")
                     self.new_message = f"{name}: {data.decode()}"
@@ -275,8 +277,12 @@ def drawing_app(chat_server):
     drawn_lines = []  # List to store drawn lines
     running = True
     start_time = time.time()
-    while (running and time.time() - start_time < 60) and (chat_server.players[chat_server.clients[0][0]][1] == False or
-                                                           chat_server.players[chat_server.clients[1][0]][1] == False):
+    clients = chat_server.players
+    i = 0
+
+    while running and time.time() - start_time < 60:
+        if all(player[1] for player in chat_server.players.values()):
+            break
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
