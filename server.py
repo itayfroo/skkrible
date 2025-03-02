@@ -113,7 +113,7 @@ class GameServer:
                 self.players[client_name] = [0, False]
                 print(f"Added {client_name} from port {addr[1]} to the client list")
                 self.new_message = f"{client_name} has joined the game!"
-                self.broadcast(f"{client_name} has joined the game!",client_socket)
+                self.broadcast(f"{client_name} has joined the game!", client_socket)
             # Start a new thread to handle this client
             thread = threading.Thread(target=self.handle_client, args=(client_socket, addr))
             thread.start()
@@ -198,7 +198,7 @@ def main_game_loop():
 
     # Start chat server in background
     chat_server = GameServer()
-
+    random_words = random.sample(words, 3)
     while running:
         screen.fill((255, 255, 255))  # Fill screen with white
 
@@ -227,6 +227,7 @@ def main_game_loop():
                         screen.fill((255, 255, 255))
                         current_word = word  # Set the word the user will draw
                         in_drawing_mode = False
+                        random_words = random.sample(words, 3)  # Generate new random words
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:  # Send the message when Enter is pressed
                     if text:
@@ -274,7 +275,8 @@ def drawing_app(chat_server):
     drawn_lines = []  # List to store drawn lines
     running = True
     start_time = time.time()
-    while (running and time.time() - start_time < 60) and (chat_server.players[chat_server.clients[0][0]][1] == False or chat_server.players[chat_server.clients[1][0]][1] == False) :
+    while (running and time.time() - start_time < 60) and (chat_server.players[chat_server.clients[0][0]][1] == False or
+                                                           chat_server.players[chat_server.clients[1][0]][1] == False):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -292,9 +294,10 @@ def drawing_app(chat_server):
         # Redraw all the lines stored in drawn_lines list
         for line in drawn_lines:
             pygame.draw.line(screen, (0, 0, 0), line[0], line[1], 5)
-        chat_server.players[chat_server.clients[0][0]][1] = False
-        chat_server.players[chat_server.clients[1][0]][1] = False
+
         pygame.display.flip()
+    chat_server.players[chat_server.clients[0][0]][1] = False
+    chat_server.players[chat_server.clients[1][0]][1] = False
 
 
 # Run the main game loop
