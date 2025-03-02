@@ -6,6 +6,7 @@ import json
 import random
 import sys
 import tkinter as tk
+
 pygame.init()
 
 # Set up the screen
@@ -50,6 +51,7 @@ class GameServer:
         self.chat_thread.start()
         self.word = ""
         self.new_message = ""
+        self.players = {}
 
     def open_window(self):
         root = tk.Tk()
@@ -88,7 +90,7 @@ class GameServer:
                 self.chat_display.insert(tk.END, self.new_message)
                 self.chat_display.yview(tk.END)
             root.after(1000, check_for_new_messages)
-            self.new_message=""
+            self.new_message = ""
 
         # Start checking for new messages
         root.after(3000, check_for_new_messages)
@@ -107,17 +109,19 @@ class GameServer:
             client_socket.sendall("What's your name? ".encode())  # Ask for the name
             client_name = client_socket.recv(1024).decode()  # Receive the client's name
             if client_name:
-                self.clients.append((client_name, addr[1]))  # Add the client as a tuple (name, port)
+                self.clients.append((client_name, addr[1]))
+                self.players[client_name] = [0, False]
                 print(f"Added {client_name} from port {addr[1]} to the client list")
-                self.broadcast(f"{client_name} has joined the game!", client_socket)  # Notify all clients of the new player
-
+                self.new_message = f"{client_name} has joined the game!"
+                self.broadcast(f"{client_name} has joined the game!",client_socket)
             # Start a new thread to handle this client
             thread = threading.Thread(target=self.handle_client, args=(client_socket, addr))
             thread.start()
 
     def handle_client(self, client_socket, address):
         # Send a welcome message
-        client_socket.sendall("Welcome to the Drawing App! Please wait for the other players to state their names.".encode())
+        client_socket.sendall(
+            "Welcome to the Drawing App! Please wait for the other players to state their names.".encode())
         name = ""
         while True:
             try:
@@ -132,17 +136,21 @@ class GameServer:
                 if data.decode() == self.word:
                     print(f"Correct word guessed by {name}!")
                     self.new_message = f"Correct word guessed by {name}!"
+                    self.players[name][0] += 1
+                    self.players[name][1] = True
                 else:
-                    print(f"{name}: {data.decode()}")
+                    print(f"{name}: {data.decode()} + actual word: {self.word}")
                     self.new_message = f"{name}: {data.decode()}"
                 # Broadcast the received message to all other clients
+                print(self.players)
                 self.broadcast(data, client_socket, address)
             except Exception as e:
                 print(f"Error: {e}")
                 break
         print(f"Connection closed: {address}")
         client_socket.close()
-        self.clients.remove((self.get_client_name_by_socket(client_socket), address[1]))  # Remove client by name and port
+        self.clients.remove(
+            (self.get_client_name_by_socket(client_socket), address[1]))  # Remove client by name and port
 
     def broadcast(self, message, sender_socket=None, address=None):
         name = ""
@@ -212,8 +220,9 @@ def main_game_loop():
                     if 50 < mouse_x < 50 + button_width and 50 + i * (button_height + 20) < mouse_y < 50 + i * (
                             button_height + 20) + button_height:
                         print(f"Button clicked: {word}")
-                        drawing_app()
                         chat_server.word = word
+                        drawing_app(chat_server)
+                        chat_server.word = ""
                         in_drawing_mode = True
                         screen.fill((255, 255, 255))
                         current_word = word  # Set the word the user will draw
@@ -256,14 +265,16 @@ def draw_messages():
         message_surface = font.render(message, True, (0, 0, 0))
         screen.blit(message_surface, (20, y_offset))
         y_offset += 30  # Add space between messages
-def drawing_app():
-    screen.fill((255,255,255))
+
+
+def drawing_app(chat_server):
+    screen.fill((255, 255, 255))
     drawing = False
     last_pos = None
     drawn_lines = []  # List to store drawn lines
     running = True
     start_time = time.time()
-    while running and time.time() - start_time < 2:
+    while (running and time.time() - start_time < 60) and (chat_server.players[chat_server.clients[0][0]][1] == False or chat_server.players[chat_server.clients[1][0]][1] == False) :
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -281,9 +292,10 @@ def drawing_app():
         # Redraw all the lines stored in drawn_lines list
         for line in drawn_lines:
             pygame.draw.line(screen, (0, 0, 0), line[0], line[1], 5)
-
+        chat_server.players[chat_server.clients[0][0]][1] = False
+        chat_server.players[chat_server.clients[1][0]][1] = False
         pygame.display.flip()
-        main_game_loop()
+
 
 # Run the main game loop
 if __name__ == '__main__':
